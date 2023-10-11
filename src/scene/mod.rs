@@ -1,3 +1,5 @@
+use sdl2::render::Canvas;
+
 use crate::algebra::{Unit, Vec3};
 use crate::camera::Camera;
 use crate::color::{Color, BLACK};
@@ -7,7 +9,11 @@ pub(crate) mod cornell_box;
 pub trait Scene {
     fn compute_color(&self, camera: &Camera, d: Vec3) -> Color;
 
-    fn get_pixels<const W: usize, const H: usize>(&self, camera: &Camera) -> [[Color; W]; H] {
+    fn get_pixels<const W: usize, const H: usize>(
+        &self,
+        camera: &Camera,
+        canvas: &mut Canvas<sdl2::video::Window>,
+    ) -> [[Color; W]; H] {
         let mut res = [[BLACK; W]; H];
         let aspect_ratio: Unit = W as f32 / W as f32;
 
@@ -27,6 +33,7 @@ pub trait Scene {
                 );
 
                 res[y][x] = self.compute_color(camera, d);
+                canvas.set_draw_color(sdl2::pixels::Color::RGB((adj_x*255.) as u8, (adj_y*255.) as u8, 0));
             }
         }
 
