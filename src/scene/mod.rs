@@ -33,7 +33,12 @@ pub trait Scene {
                 );
 
                 res[y][x] = self.compute_color(camera, d);
-                canvas.set_draw_color(sdl2::pixels::Color::RGB((adj_x*255.) as u8, (adj_y*255.) as u8, 0));
+                canvas.set_draw_color(sdl2::pixels::Color::RGB(
+                    (adj_x * 255.) as u8,
+                    (adj_y * 255.) as u8,
+                    0,
+                ));
+                canvas.draw_point((x as i32, y as i32));
             }
         }
 

@@ -37,6 +37,7 @@ pub fn main() -> Result<(), String> {
     canvas.present();
 
     target_scene.get_pixels::<400, 400>(&camera, &mut canvas);
+    canvas.present();
     let mut event_pump = sdl_context.event_pump()?;
 
     'running: loop {
@@ -51,8 +52,6 @@ pub fn main() -> Result<(), String> {
             }
         }
 
-        canvas.clear();
-        canvas.present();
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
         // The rest of the game loop goes here...
     }
