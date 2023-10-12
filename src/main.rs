@@ -1,5 +1,10 @@
 extern crate sdl2;
 
+use sdl2::event::Event;
+use sdl2::keyboard::Keycode;
+use sdl2::pixels::Color;
+use std::time::Duration;
+
 use std::env;
 
 use scene::{cornell_box, Scene};
@@ -10,17 +15,28 @@ pub(crate) mod color;
 pub(crate) mod mesh;
 pub(crate) mod scene;
 
-use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
-use sdl2::pixels::Color;
-use std::time::Duration;
+const W: usize = 800;
+const H: usize = 600;
 
-pub fn main() -> Result<(), String> {
-    env::set_var("RUST_BACKTRACE", "1");
+fn main() -> Result<(), String> {
+    println!("{:?}", env::var_os("RUST_BACKTRACE"));
 
-    let camera = camera::Camera::default();
-    let target_scene = cornell_box::new();
+    let sdl_context = sdl2::init()?;
+    let video_subsystem = sdl_context.video()?;
 
+    let window = video_subsystem
+        .window("rust-sdl2 demo: Video", W as u32, H as u32)
+        .position_centered()
+        .opengl()
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
+
+    canvas.set_draw_color(Color::RGB(255, 0, 0));
+    canvas.clear();
+    canvas.present();
+    let mut event_pump = sdl_context.event_pump()?;
     let sdl_context = sdl2::init()?;
     let video_subsystem = sdl_context.video()?;
 

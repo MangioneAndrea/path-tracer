@@ -1,7 +1,7 @@
 use crate::algebra::{Unit, Vec3};
 
 pub struct Camera {
-    origin: Vec3,
+    pub origin: Vec3,
     target: Vec3,
     fov: Unit,
     up: Vec3,

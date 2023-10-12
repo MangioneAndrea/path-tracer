@@ -1,10 +1,12 @@
+use nalgebra::Vector1;
+
 use crate::algebra::{Unit, Vec3};
 use crate::color::Color;
 use crate::mesh::MeshProperties;
 
 pub struct Sphere {
-    mesh_properties: MeshProperties,
-    radius: Unit,
+    pub mesh_properties: MeshProperties,
+    pub radius: Unit,
 }
 
 impl Sphere {
@@ -13,9 +15,41 @@ impl Sphere {
             mesh_properties: MeshProperties {
                 center: Vec3::new(x, y, z),
                 color,
-                reflectivity: 0.
+                reflectivity: 0.,
             },
-            radius
+            radius,
         }
+    }
+
+    pub fn closest_intersection(&self, origin: Vec3, direction: Vec3) -> Option<Vec3> {
+        let u = direction.0.normalize();
+        let ce = origin.0 - self.mesh_properties.center.0;
+
+        let a = 1.;
+        let b = 2. * u.dot(&ce);
+
+        let c = ce.dot(&ce) - self.radius * self.radius;
+
+        let delta = b * b - 4. * a * c;
+
+        if delta < 0.000001 {
+            return None;
+        }
+
+        let d = if b > 0. {
+            -b + delta.sqrt()
+        } else {
+            -b - delta.sqrt()
+        };
+
+        if d < 0.000001 {
+            return None;
+        }
+
+        let best = d / (2. * a);
+
+        let res = u * Vector1::new(best) + origin.0;
+
+        Some(Vec3(res))
     }
 }

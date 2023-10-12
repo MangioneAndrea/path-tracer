@@ -7,9 +7,9 @@ pub(crate) mod cuboid;
 pub(crate) mod sphere;
 
 pub struct MeshProperties {
-    center: Vec3,
-    color: Color,
-    reflectivity: Unit,
+    pub center: Vec3,
+    pub color: Color,
+    pub reflectivity: Unit,
 }
 
 impl Default for MeshProperties {
