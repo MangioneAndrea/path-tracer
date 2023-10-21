@@ -27,6 +27,7 @@ pub trait Scene {
         let u = camera.u();
         let start = Instant::now();
         for row in (0..H).step_by(STEP) {
+            let mut pixels = [[BLACK; STEP]; STEP];
             for col in (0..W).step_by(STEP) {
                 for y in row..(row + STEP) {
                     for x in col..(col + STEP) {
@@ -57,7 +58,14 @@ pub trait Scene {
                         for _ in 0..ITERATIONS {
                             colors.push(self.compute_color(&camera.origin, &d));
                         }
-                        canvas.set_draw_color(colors.avg());
+
+                        pixels[y - row][x - col] = colors.avg();
+                    }
+                }
+
+                for y in row..(row + STEP) {
+                    for x in col..(col + STEP) {
+                        canvas.set_draw_color(pixels[y - row][x - col]);
                         canvas.draw_point((x as i32, y as i32)).unwrap();
                     }
                 }
