@@ -40,36 +40,23 @@ pub trait Scene {
                                 + (u.0 * (-camera.fov_scale() * adj_y)),
                         );
 
-                        /*j
-                        let thd_n = std::thread::available_parallelism().unwrap().get();
-
-                        let mut col = [BLACK; ITERATIONS];
-
-                        for slice in col.chunks_mut(ITERATIONS / thd_n) {
-                            std::thread::spawn(move || {
-                                for elem in slice {
-                                    *elem = self.compute_color(&camera.origin, &d);
-                                }
-                            });
-                        }
-                        */
-
-                        let mut colors = Vec::with_capacity(ITERATIONS);
-                        for _ in 0..ITERATIONS {
-                            colors.push(self.compute_color(&camera.origin, &d));
+                        let mut colors = [BLACK; ITERATIONS];
+                        for chunk in colors.chunks_mut(8) {
+                            for color in chunk {
+                                *color = self.compute_color(&camera.origin, &d);
+                            }
                         }
 
-                        pixels[y - row][x - col] = colors.avg();
+                        pixels[y - row][x - col] = colors.to_vec().avg();
                     }
-                }
-
-                for y in row..(row + STEP) {
-                    for x in col..(col + STEP) {
-                        canvas.set_draw_color(pixels[y - row][x - col]);
-                        canvas.draw_point((x as i32, y as i32)).unwrap();
+                    for y in row..(row + STEP) {
+                        for x in col..(col + STEP) {
+                            canvas.set_draw_color(pixels[y - row][x - col]);
+                            canvas.draw_point((x as i32, y as i32)).unwrap();
+                        }
                     }
+                    canvas.present();
                 }
-                canvas.present();
             }
         }
 
