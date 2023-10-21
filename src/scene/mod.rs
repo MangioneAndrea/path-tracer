@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use sdl2::render::Canvas;
 
 use crate::algebra::{Unit, Vec3};
@@ -6,7 +8,8 @@ use crate::color::{Color, ColorOps, BLACK};
 
 pub(crate) mod cornell_box;
 
-const ITERATIONS: usize = 128;
+const ITERATIONS: usize = 64;
+const STEP: usize = 32;
 
 pub trait Scene {
     fn compute_color(&mut self, camera: &Vec3, d: &Vec3) -> Color;
@@ -22,42 +25,48 @@ pub trait Scene {
         let direction = camera.direction();
         let r = camera.r();
         let u = camera.u();
+        let start = Instant::now();
+        for row in (0..H).step_by(STEP) {
+            for col in (0..W).step_by(STEP) {
+                for y in row..(row + STEP) {
+                    for x in col..(col + STEP) {
+                        let adj_y: Unit = (y as Unit) / ((H as Unit) / 2.) - 1.;
+                        let adj_x: Unit = ((x as Unit) / ((W as Unit) / 2.) - 1.) * aspect_ratio;
 
-        for y in 0..H {
-            let adj_y: Unit = (y as Unit) / ((H as Unit) / 2.) - 1.;
+                        let d = Vec3(
+                            direction.0
+                                + (r.0 * nalgebra::Vector1::new(camera.fov_scale() * adj_x))
+                                + (u.0 * (-camera.fov_scale() * adj_y)),
+                        );
 
-            for x in 0..W {
-                let adj_x: Unit = ((x as Unit) / ((W as Unit) / 2.) - 1.) * aspect_ratio;
+                        /*j
+                        let thd_n = std::thread::available_parallelism().unwrap().get();
 
-                let d = Vec3(
-                    direction.0
-                        + (r.0 * nalgebra::Vector1::new(camera.fov_scale() * adj_x))
-                        + (u.0 * (-camera.fov_scale() * adj_y)),
-                );
+                        let mut col = [BLACK; ITERATIONS];
 
-                /*j
-                let thd_n = std::thread::available_parallelism().unwrap().get();
-
-                let mut col = [BLACK; ITERATIONS];
-
-                for slice in col.chunks_mut(ITERATIONS / thd_n) {
-                    std::thread::spawn(move || {
-                        for elem in slice {
-                            *elem = self.compute_color(&camera.origin, &d);
+                        for slice in col.chunks_mut(ITERATIONS / thd_n) {
+                            std::thread::spawn(move || {
+                                for elem in slice {
+                                    *elem = self.compute_color(&camera.origin, &d);
+                                }
+                            });
                         }
-                    });
-                }
-                */
+                        */
 
-                let mut colors = Vec::with_capacity(ITERATIONS);
-                for _ in 0..ITERATIONS {
-                    colors.push(self.compute_color(&camera.origin, &d));
+                        let mut colors = Vec::with_capacity(ITERATIONS);
+                        for _ in 0..ITERATIONS {
+                            colors.push(self.compute_color(&camera.origin, &d));
+                        }
+                        canvas.set_draw_color(colors.avg());
+                        canvas.draw_point((x as i32, y as i32)).unwrap();
+                    }
                 }
-                canvas.set_draw_color(colors.avg());
-                canvas.draw_point((x as i32, y as i32)).unwrap();
+                canvas.present();
             }
-            canvas.present();
         }
-        println!("hey");
+
+        let duration = start.elapsed();
+
+        println!("Time elapsed in expensive_function() is: {:?}", duration);
     }
 }
