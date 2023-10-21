@@ -4,6 +4,8 @@ use crate::algebra::{Unit, Vec3};
 use crate::color::Color;
 use crate::mesh::MeshProperties;
 
+use super::Mesh;
+
 pub struct Sphere {
     pub mesh_properties: MeshProperties,
     pub radius: Unit,
@@ -15,13 +17,20 @@ impl Sphere {
             mesh_properties: MeshProperties {
                 center: Vec3::new(x, y, z),
                 color,
-                reflectivity: 0.,
+                reflectivity: None,
+                emission: None,
             },
             radius,
         }
     }
+}
 
-    pub fn closest_intersection(&self, origin: &Vec3, direction: &Vec3) -> Option<Vec3> {
+impl Mesh for Sphere {
+    fn get_properties(&self) -> &MeshProperties {
+        return &self.mesh_properties;
+    }
+
+    fn closest_intersection(&self, origin: &Vec3, direction: &Vec3) -> Option<Vec3> {
         let u = direction.0.normalize();
         let ce = origin.0 - self.mesh_properties.center.0;
 

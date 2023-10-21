@@ -1,17 +1,26 @@
-use nalgebra::distance;
+use std::f32::consts::PI;
+
+use nalgebra::{distance, Vector1};
+use rand::{thread_rng, Rng};
 
 use crate::{
-    color::{BLACK, BLUE, GREEN, RED, WHITE, PINK},
-    mesh::sphere::Sphere,
+    algebra::Vec3,
+    color::{BLACK, BLUE, GREEN, PINK, RED, WHITE},
+    mesh::{sphere::Sphere, Mesh},
 };
 
 use super::Scene;
 
+const P: f32 = 0.1;
+
 pub struct CornellBox {
     pub spheres: [Sphere; 7],
+    rng: rand::rngs::ThreadRng,
 }
 
 pub fn new() -> CornellBox {
+    let mut light = Sphere::new(0., 101., 0., 100., WHITE);
+    light.mesh_properties.emission = Some(WHITE);
     CornellBox {
         spheres: [
             Sphere::new(-0.6, -0.7, -0.6, 0.3, PINK),
@@ -19,27 +28,66 @@ pub fn new() -> CornellBox {
             Sphere::new(0., 0., 101., 100., GREEN),
             Sphere::new(-101., 0., 0., 100., RED),
             Sphere::new(101., 0., 0., 100., BLUE),
-            Sphere::new(0., 101., 0., 100., BLUE),
+            light,
             Sphere::new(0., -101., 0., 100., WHITE),
         ],
+        rng: thread_rng(),
     }
 }
 
 impl Scene for CornellBox {
     fn compute_color(
-        &self,
-        camera: &crate::camera::Camera,
+        &mut self,
+        origin: &crate::algebra::Vec3,
         d: &crate::algebra::Vec3,
     ) -> crate::color::Color {
-        let closest: Option<(&Sphere, f32)> = self
+        let closest: Option<(&Sphere, Vec3, f32)> = self
             .spheres
             .iter()
-            .map(|s| (s, s.closest_intersection(&camera.origin, &d)))
+            .map(|s| (s, s.closest_intersection(&origin, &d)))
             .filter(|(_, intersection)| intersection.is_some())
-            .map(|(s, intersection)| (s, distance(&camera.origin.0.into(), &intersection.unwrap().0.into())))
-            .filter(|(_, d)| d > &0.)
-            .min_by(|(_, d1), (_, d2)| d1.total_cmp(d2));
+            .map(|(s, intersection)| {
+                (
+                    s,
+                    intersection.unwrap(),
+                    distance(&origin.0.into(), &intersection.unwrap().0.into()),
+                )
+            })
+            .filter(|(_, _, d)| d > &0.)
+            .min_by(|(_, _, d1), (_, _, d2)| d1.total_cmp(d2));
 
-        return closest.map_or(BLACK, |c| c.0.mesh_properties.color);
+        if closest.is_none() {
+            return BLACK;
+        }
+
+        let (sphere, intersection, _) = closest.unwrap();
+
+        let rnd: usize = self.rng.gen();
+
+        if (rnd as f32) < (P * (usize::MAX as f32)) {
+            return sphere.mesh_properties.emission.unwrap_or_default();
+        }
+
+        let mut random_direction = Vec3::new(self.rng.gen(), self.rng.gen(), self.rng.gen());
+        let n = (intersection.0 - sphere.mesh_properties.center.0).normalize();
+
+        while random_direction.0.magnitude() > 1. {
+            random_direction.0.x = self.rng.gen();
+            random_direction.0.y = self.rng.gen();
+            random_direction.0.z = self.rng.gen();
+        }
+
+        let mut random_direction = random_direction.0.normalize();
+
+        if random_direction.dot(&n) < 0. {
+            random_direction = random_direction * Vector1::new(-1.);
+        }
+
+        let color = sphere.brdf(d, &Vec3(n), &Vec3(random_direction))
+            * (n.dot(&random_direction) * ((2. * PI) / 1. - P));
+        let emission = sphere.mesh_properties.emission.unwrap_or_default();
+        let next_emissions = self.compute_color(&intersection, &Vec3(random_direction));
+
+        return emission + next_emissions * color;
     }
 }

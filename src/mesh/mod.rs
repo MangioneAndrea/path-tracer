@@ -1,3 +1,5 @@
+use nalgebra::{RealField, Vector3};
+
 use crate::{
     algebra::{Unit, Vec3},
     color::{Color, BLACK},
@@ -9,7 +11,8 @@ pub(crate) mod sphere;
 pub struct MeshProperties {
     pub center: Vec3,
     pub color: Color,
-    pub reflectivity: Unit,
+    pub reflectivity: Option<Unit>,
+    pub emission: Option<Color>,
 }
 
 impl Default for MeshProperties {
@@ -17,11 +20,22 @@ impl Default for MeshProperties {
         MeshProperties {
             center: Vec3::default(),
             color: BLACK,
-            reflectivity: 0.,
+            reflectivity: None,
+            emission: None,
         }
     }
 }
 
 pub trait Mesh {
-    fn closest_intersection(from: Vec3, to: Vec3);
+    fn closest_intersection(&self, from: &Vec3, to: &Vec3) -> Option<Vec3>;
+
+    fn get_properties(&self) -> &MeshProperties;
+
+    fn brdf(&self, direction: &Vec3, normal: &Vec3, w: &Vec3) -> Color {
+        let nl = normal.0.magnitude();
+
+        if self.get_properties().reflectivity.is_some() {}
+
+        return self.get_properties().color * (1. / f32::pi());
+    }
 }

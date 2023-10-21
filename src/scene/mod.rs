@@ -2,15 +2,17 @@ use sdl2::render::Canvas;
 
 use crate::algebra::{Unit, Vec3};
 use crate::camera::Camera;
-use crate::color::Color;
+use crate::color::{Color, ColorOps, BLACK};
 
 pub(crate) mod cornell_box;
 
+const ITERATIONS: usize = 128;
+
 pub trait Scene {
-    fn compute_color(&self, camera: &Camera, d: &Vec3) -> Color;
+    fn compute_color(&mut self, camera: &Vec3, d: &Vec3) -> Color;
 
     fn get_pixels<const W: usize, const H: usize>(
-        &self,
+        &mut self,
         camera: &Camera,
         canvas: &mut Canvas<sdl2::video::Window>,
     ) {
@@ -33,8 +35,25 @@ pub trait Scene {
                         + (u.0 * (-camera.fov_scale() * adj_y)),
                 );
 
-                let color = self.compute_color(camera, &d);
-                canvas.set_draw_color(color);
+                /*j
+                let thd_n = std::thread::available_parallelism().unwrap().get();
+
+                let mut col = [BLACK; ITERATIONS];
+
+                for slice in col.chunks_mut(ITERATIONS / thd_n) {
+                    std::thread::spawn(move || {
+                        for elem in slice {
+                            *elem = self.compute_color(&camera.origin, &d);
+                        }
+                    });
+                }
+                */
+
+                let mut colors = Vec::with_capacity(ITERATIONS);
+                for _ in 0..ITERATIONS {
+                    colors.push(self.compute_color(&camera.origin, &d));
+                }
+                canvas.set_draw_color(colors.avg());
                 canvas.draw_point((x as i32, y as i32)).unwrap();
             }
             canvas.present();
