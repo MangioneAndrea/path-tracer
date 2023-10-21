@@ -7,7 +7,10 @@ use std::time::Duration;
 
 use std::env;
 
-use scene::{cornell_box, Scene};
+use scene::cornell_box;
+
+use crate::camera::Camera;
+use crate::scene::Scene;
 
 pub(crate) mod algebra;
 pub(crate) mod camera;
@@ -33,28 +36,17 @@ fn main() -> Result<(), String> {
 
     let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
 
-    canvas.set_draw_color(Color::RGB(255, 0, 0));
-    canvas.clear();
-    canvas.present();
-    let mut event_pump = sdl_context.event_pump()?;
-    let sdl_context = sdl2::init()?;
-    let video_subsystem = sdl_context.video()?;
-
-    let window = video_subsystem
-        .window("rust-sdl2 demo: Video", 800, 600)
-        .position_centered()
-        .opengl()
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
-    canvas.set_draw_color(Color::RGB(255, 0, 0));
+    canvas.set_draw_color(Color::RGB(255, 255, 0));
     canvas.clear();
     canvas.present();
 
-    target_scene.get_pixels::<400, 400>(&camera, &mut canvas);
     canvas.present();
+
+    let target_scene = cornell_box::new();
+    let camera = Camera::default();
+
     let mut event_pump = sdl_context.event_pump()?;
+    target_scene.get_pixels::<W, H>(&camera, &mut canvas);
 
     'running: loop {
         for event in event_pump.poll_iter() {
@@ -69,7 +61,6 @@ fn main() -> Result<(), String> {
         }
 
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
-        // The rest of the game loop goes here...
     }
 
     Ok(())

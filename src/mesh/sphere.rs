@@ -21,7 +21,7 @@ impl Sphere {
         }
     }
 
-    pub fn closest_intersection(&self, origin: Vec3, direction: Vec3) -> Option<Vec3> {
+    pub fn closest_intersection(&self, origin: &Vec3, direction: &Vec3) -> Option<Vec3> {
         let u = direction.0.normalize();
         let ce = origin.0 - self.mesh_properties.center.0;
 
