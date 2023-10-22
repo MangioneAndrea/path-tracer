@@ -15,6 +15,7 @@ const P: f32 = 0.1;
 
 pub struct CornellBox {
     pub spheres: [Sphere; 7],
+    rng: rand::rngs::ThreadRng,
 }
 
 pub fn new() -> CornellBox {
@@ -30,15 +31,15 @@ pub fn new() -> CornellBox {
             light,
             Sphere::new(0., -101., 0., 100., WHITE),
         ],
+        rng: thread_rng(),
     }
 }
 
 impl Scene for CornellBox {
     fn compute_color(
-        &self,
+        &mut self,
         origin: &crate::algebra::Vec3,
         d: &crate::algebra::Vec3,
-        rng: &mut rand::rngs::ThreadRng,
     ) -> crate::color::Color {
         let closest: Option<(&Sphere, Vec3, f32)> = self
             .spheres
@@ -61,19 +62,19 @@ impl Scene for CornellBox {
 
         let (sphere, intersection, _) = closest.unwrap();
 
-        let rnd: usize = rng.gen();
+        let rnd: usize = self.rng.gen();
 
         if (rnd as f32) < (P * (usize::MAX as f32)) {
             return sphere.mesh_properties.emission.unwrap_or_default();
         }
 
-        let mut random_direction = Vec3::new(rng.gen(), rng.gen(), rng.gen());
+        let mut random_direction = Vec3::new(self.rng.gen(), self.rng.gen(), self.rng.gen());
         let n = (intersection.0 - sphere.mesh_properties.center.0).normalize();
 
         while random_direction.0.magnitude() > 1. {
-            random_direction.0.x = rng.gen();
-            random_direction.0.y = rng.gen();
-            random_direction.0.z = rng.gen();
+            random_direction.0.x = self.rng.gen();
+            random_direction.0.y = self.rng.gen();
+            random_direction.0.z = self.rng.gen();
         }
 
         let mut random_direction = random_direction.0.normalize();
@@ -85,7 +86,7 @@ impl Scene for CornellBox {
         let color = sphere.brdf(d, &Vec3(n), &Vec3(random_direction))
             * (n.dot(&random_direction) * ((2. * PI) / 1. - P));
         let emission = sphere.mesh_properties.emission.unwrap_or_default();
-        let next_emissions = self.compute_color(&intersection, &Vec3(random_direction), rng);
+        let next_emissions = self.compute_color(&intersection, &Vec3(random_direction));
 
         return emission + next_emissions * color;
     }
