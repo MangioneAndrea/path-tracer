@@ -1,6 +1,6 @@
 extern crate sdl2;
 
-use color::{BLACK, WHITE};
+use color::{Color, BLACK, WHITE};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
@@ -20,14 +20,16 @@ pub(crate) mod color;
 pub(crate) mod mesh;
 pub(crate) mod scene;
 
-const W: usize = 800;
-const H: usize = 600;
+const W: usize = 1024;
+const H: usize = 768;
 const STEP: usize = 32;
 
 pub struct PixelsBuffer {
     row: usize,
     col: usize,
-    pixels: [u8; STEP * STEP * 4],
+    w: usize,
+    h: usize,
+    pixels: [Color; STEP * STEP],
 }
 
 impl PixelsBuffer {
@@ -35,7 +37,9 @@ impl PixelsBuffer {
         PixelsBuffer {
             row,
             col,
-            pixels: [0; STEP * STEP * 4],
+            pixels: [BLACK; STEP * STEP],
+            w: STEP,
+            h: STEP,
         }
     }
 }
@@ -79,18 +83,25 @@ fn main() -> Result<(), String> {
         if let Ok(data) = rx.try_recv() {
             texture
                 .with_lock(None, |buffer: &mut [u8], pitch: usize| {
+                    let row_padding = data.row;
+                    let col_padding = data.col;
                     for y in 0..STEP {
                         for x in 0..STEP {
-                            buffer[y*data.row * W + x * data.col]
+                            let global_idx = (y + row_padding) * W + x + col_padding;
+                            let color: sdl2::pixels::Color = data.pixels[y * STEP + x].into();
+                            buffer[global_idx * 4 + 0] = color.b;
+                            buffer[global_idx * 4 + 1] = color.g;
+                            buffer[global_idx * 4 + 2] = color.r;
+                            buffer[global_idx * 4 + 3] = 255;
                         }
                     }
                 })
                 .unwrap();
-
-            canvas.copy(&texture, None, None).unwrap();
         }
+        canvas.copy(&texture, None, None).unwrap();
 
         canvas.present();
+
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit { .. }
@@ -101,8 +112,6 @@ fn main() -> Result<(), String> {
                 _ => {}
             }
         }
-
-        ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
     }
 
     Ok(())
