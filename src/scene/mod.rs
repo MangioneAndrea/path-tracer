@@ -1,4 +1,3 @@
-use std::cell::Cell;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
 use std::thread;
@@ -11,70 +10,10 @@ use crate::PixelsBuffer;
 
 pub(crate) mod cornell_box;
 
-const ITERATIONS: usize = 32;
+const ITERATIONS: usize = 256;
 
 pub trait Scene: Sync + Send {
     fn compute_color(&self, camera: &Vec3, d: &Vec3, rng: &mut rand::rngs::ThreadRng) -> Color;
-
-    fn get_pixels<const W: usize, const H: usize, const STEP: usize>(
-        &self,
-        camera: Camera,
-        tx: Sender<Box<PixelsBuffer>>,
-    ) {
-        let aspect_ratio: Unit = (W as Unit) / (H as Unit);
-
-        let direction = camera.direction();
-        let r = camera.r();
-        let u = camera.u();
-        let start = Instant::now();
-
-        let scene = Arc::new(self);
-
-        let handles = (0..H).map(|row| {
-            let scene = scene.clone();
-            thread::spawn(|| {
-                for row in (0..H).step_by(STEP) {
-                    for col in (0..W).step_by(STEP) {
-                        let mut rng = rand::thread_rng();
-                        let mut pb = Box::new(PixelsBuffer::new(row, col));
-                        for y in row..(row + STEP) {
-                            for x in col..(col + STEP) {
-                                let adj_y: Unit = (y as Unit) / ((H as Unit) / 2.) - 1.;
-                                let adj_x: Unit =
-                                    ((x as Unit) / ((W as Unit) / 2.) - 1.) * aspect_ratio;
-
-                                let d = Vec3(
-                                    direction.0
-                                        + (r.0
-                                            * nalgebra::Vector1::new(camera.fov_scale() * adj_x))
-                                        + (u.0 * (-camera.fov_scale() * adj_y)),
-                                );
-
-                                let mut colors = [BLACK; ITERATIONS];
-                                for chunk in colors.chunks_mut(8) {
-                                    for color in chunk {
-                                        *color = scene.compute_color(&camera.origin, &d, &mut rng);
-                                    }
-                                }
-
-                                let c = colors.to_vec().avg().into();
-                                pb.pixels[(y - row) * STEP + (x - col)] = c;
-                            }
-                        }
-                        tx.send(pb).unwrap();
-                    }
-                }
-            })
-        });
-
-        for handle in handles {
-            handle.join();
-        }
-
-        let duration = start.elapsed();
-
-        println!("Time elapsed in expensive_function() is: {:?}", duration);
-    }
 }
 
 pub fn get_pixels<const W: usize, const H: usize, const STEP: usize, S>(
@@ -82,7 +21,7 @@ pub fn get_pixels<const W: usize, const H: usize, const STEP: usize, S>(
     camera: Camera,
     tx: Sender<Box<PixelsBuffer>>,
 ) where
-    S: Scene,
+    S: Scene + 'static,
 {
     let aspect_ratio: Unit = (W as Unit) / (H as Unit);
 
@@ -90,49 +29,41 @@ pub fn get_pixels<const W: usize, const H: usize, const STEP: usize, S>(
     let r = camera.r();
     let u = camera.u();
     let start = Instant::now();
-    let fov_scale = camera.fov_scale
+    let fov_scale = camera.fov_scale();
 
-    let scene = Arc::new(Box::new(scene));
-
-    let handles = (0..H).map(|row| {
+    (0..H).step_by(STEP).map(|row| {
         let scene = scene.clone();
+        let tx = tx.clone();
         thread::spawn(move || {
-            for row in (0..H).step_by(STEP) {
-                for col in (0..W).step_by(STEP) {
-                    let mut rng = rand::thread_rng();
-                    let mut pb = Box::new(PixelsBuffer::new(row, col));
-                    for y in row..(row + STEP) {
-                        for x in col..(col + STEP) {
-                            let adj_y: Unit = (y as Unit) / ((H as Unit) / 2.) - 1.;
-                            let adj_x: Unit =
-                                ((x as Unit) / ((W as Unit) / 2.) - 1.) * aspect_ratio;
+            for col in (0..W).step_by(STEP) {
+                let mut rng = rand::thread_rng();
+                let mut pb = Box::new(PixelsBuffer::new(row, col));
+                for y in row..(row + STEP) {
+                    for x in col..(col + STEP) {
+                        let adj_y: Unit = (y as Unit) / ((H as Unit) / 2.) - 1.;
+                        let adj_x: Unit = ((x as Unit) / ((W as Unit) / 2.) - 1.) * aspect_ratio;
 
-                            let d = Vec3(
-                                direction.0
-                                    + (r.0 * nalgebra::Vector1::new(camera.fov_scale() * adj_x))
-                                    + (u.0 * (-camera.fov_scale() * adj_y)),
-                            );
+                        let d = Vec3(
+                            direction.0
+                                + (r.0 * nalgebra::Vector1::new(fov_scale * adj_x))
+                                + (u.0 * (-fov_scale * adj_y)),
+                        );
 
-                            let mut colors = [BLACK; ITERATIONS];
-                            for chunk in colors.chunks_mut(8) {
-                                for color in chunk {
-                                    *color = scene.compute_color(&camera.origin, &d, &mut rng);
-                                }
+                        let mut colors = [BLACK; ITERATIONS];
+                        for chunk in colors.chunks_mut(8) {
+                            for color in chunk {
+                                *color = scene.compute_color(&camera.origin, &d, &mut rng);
                             }
-
-                            let c = colors.to_vec().avg().into();
-                            pb.pixels[(y - row) * STEP + (x - col)] = c;
                         }
+
+                        let c = colors.to_vec().avg().into();
+                        pb.pixels[(y - row) * STEP + (x - col)] = c;
                     }
-                    tx.send(pb).unwrap();
                 }
+                tx.send(pb).unwrap();
             }
         })
-    });
-
-    for handle in handles {
-        handle.join();
-    }
+    }).count();
 
     let duration = start.elapsed();
 

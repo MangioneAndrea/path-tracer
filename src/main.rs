@@ -3,8 +3,8 @@ extern crate sdl2;
 use color::{Color, BLACK, WHITE};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::pixels::PixelFormatEnum;
 use std::sync::mpsc::channel;
+use std::sync::Arc;
 use std::time::Duration;
 
 use std::env;
@@ -12,7 +12,8 @@ use std::env;
 use scene::cornell_box;
 
 use crate::camera::Camera;
-use crate::scene::Scene;
+use crate::scene::cornell_box::CornellBox;
+use crate::scene::get_pixels;
 
 pub(crate) mod algebra;
 pub(crate) mod camera;
@@ -59,13 +60,15 @@ fn main() -> Result<(), String> {
 
     let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
 
-    let mut target_scene = cornell_box::new();
+    let target_scene = Arc::new(Box::new(cornell_box::new()));
     let camera = Camera::default();
 
     let (tx, rx) = channel::<Box<PixelsBuffer>>();
 
     let mut event_pump = sdl_context.event_pump()?;
-    std::thread::spawn(move || target_scene.get_pixels::<W, H, STEP>(camera, tx));
+    std::thread::spawn(|| {
+        get_pixels::<W, H, STEP, CornellBox>(target_scene, camera, tx);
+    });
 
     canvas.set_draw_color(BLACK);
     canvas.clear();
@@ -80,22 +83,28 @@ fn main() -> Result<(), String> {
     println!("{:?}", texture.query());
 
     'running: loop {
-        while let Ok(data) = rx.try_recv() {
+        if let Ok(data) = rx.try_recv() {
             texture
-                .with_lock(None, |buffer: &mut [u8], pitch: usize| {
-                    let row_padding = data.row;
-                    let col_padding = data.col;
-                    for y in 0..STEP {
-                        for x in 0..STEP {
-                            let global_idx = (y + row_padding) * W + x + col_padding;
-                            let color: sdl2::pixels::Color = data.pixels[y * STEP + x].into();
-                            buffer[global_idx * 4 + 0] = color.b;
-                            buffer[global_idx * 4 + 1] = color.g;
-                            buffer[global_idx * 4 + 2] = color.r;
-                            buffer[global_idx * 4 + 3] = 255;
+                .with_lock(
+                    sdl2::rect::Rect::new(
+                        data.col as i32,
+                        (data.row) as i32,
+                        STEP as u32,
+                        STEP as u32,
+                    ),
+                    |buffer: &mut [u8], _: usize| {
+                        for y in 0..STEP {
+                            for x in 0..STEP {
+                                let global_idx = (y * STEP + x) * 4;
+                                let color: sdl2::pixels::Color = data.pixels[y * STEP + x].into();
+                                buffer[global_idx + 3] = 255;
+                                buffer[global_idx + 2] = color.r;
+                                buffer[global_idx + 1] = color.g;
+                                buffer[global_idx + 0] = color.b;
+                            }
                         }
-                    }
-                })
+                    },
+                )
                 .unwrap();
         }
         canvas.copy(&texture, None, None).unwrap();
@@ -113,7 +122,7 @@ fn main() -> Result<(), String> {
             }
         }
 
-        std::thread::sleep(Duration::from_millis(10));
+        std::thread::sleep(Duration::from_micros(10));
     }
 
     Ok(())
