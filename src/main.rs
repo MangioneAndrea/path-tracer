@@ -66,9 +66,7 @@ fn main() -> Result<(), String> {
     let (tx, rx) = channel::<Box<PixelsBuffer>>();
 
     let mut event_pump = sdl_context.event_pump()?;
-    std::thread::spawn(|| {
-        get_pixels::<W, H, STEP, CornellBox>(target_scene, camera, tx);
-    });
+    get_pixels::<W, H, STEP, CornellBox>(target_scene, camera, tx);
 
     canvas.set_draw_color(BLACK);
     canvas.clear();

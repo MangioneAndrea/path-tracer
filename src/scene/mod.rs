@@ -31,39 +31,43 @@ pub fn get_pixels<const W: usize, const H: usize, const STEP: usize, S>(
     let start = Instant::now();
     let fov_scale = camera.fov_scale();
 
-    (0..H).step_by(STEP).map(|row| {
-        let scene = scene.clone();
-        let tx = tx.clone();
-        thread::spawn(move || {
-            for col in (0..W).step_by(STEP) {
-                let mut rng = rand::thread_rng();
-                let mut pb = Box::new(PixelsBuffer::new(row, col));
-                for y in row..(row + STEP) {
-                    for x in col..(col + STEP) {
-                        let adj_y: Unit = (y as Unit) / ((H as Unit) / 2.) - 1.;
-                        let adj_x: Unit = ((x as Unit) / ((W as Unit) / 2.) - 1.) * aspect_ratio;
+    let _: Vec<_> = (0..H)
+        .step_by(STEP)
+        .map(|row| {
+            let scene = scene.clone();
+            let tx = tx.clone();
+            thread::spawn(move || {
+                for col in (0..W).step_by(STEP) {
+                    let mut rng = rand::thread_rng();
+                    let mut pb = Box::new(PixelsBuffer::new(row, col));
+                    for y in row..(row + STEP) {
+                        for x in col..(col + STEP) {
+                            let adj_y: Unit = (y as Unit) / ((H as Unit) / 2.) - 1.;
+                            let adj_x: Unit =
+                                ((x as Unit) / ((W as Unit) / 2.) - 1.) * aspect_ratio;
 
-                        let d = Vec3(
-                            direction.0
-                                + (r.0 * nalgebra::Vector1::new(fov_scale * adj_x))
-                                + (u.0 * (-fov_scale * adj_y)),
-                        );
+                            let d = Vec3(
+                                direction.0
+                                    + (r.0 * nalgebra::Vector1::new(fov_scale * adj_x))
+                                    + (u.0 * (-fov_scale * adj_y)),
+                            );
 
-                        let mut colors = [BLACK; ITERATIONS];
-                        for chunk in colors.chunks_mut(8) {
-                            for color in chunk {
-                                *color = scene.compute_color(&camera.origin, &d, &mut rng);
+                            let mut colors = [BLACK; ITERATIONS];
+                            for chunk in colors.chunks_mut(8) {
+                                for color in chunk {
+                                    *color = scene.compute_color(&camera.origin, &d, &mut rng);
+                                }
                             }
-                        }
 
-                        let c = colors.to_vec().avg().into();
-                        pb.pixels[(y - row) * STEP + (x - col)] = c;
+                            let c = colors.to_vec().avg().into();
+                            pb.pixels[(y - row) * STEP + (x - col)] = c;
+                        }
                     }
+                    tx.send(pb).unwrap();
                 }
-                tx.send(pb).unwrap();
-            }
+            })
         })
-    }).count();
+        .collect();
 
     let duration = start.elapsed();
 
