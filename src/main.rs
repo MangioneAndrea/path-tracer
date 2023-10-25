@@ -65,7 +65,7 @@ fn main() -> Result<(), String> {
     let (tx, rx) = channel::<Box<PixelsBuffer>>();
 
     let mut event_pump = sdl_context.event_pump()?;
-    target_scene.get_pixels::<W, H, STEP>(&camera, tx);
+    std::thread::spawn(move || target_scene.get_pixels::<W, H, STEP>(camera, tx));
 
     canvas.set_draw_color(BLACK);
     canvas.clear();
@@ -80,7 +80,7 @@ fn main() -> Result<(), String> {
     println!("{:?}", texture.query());
 
     'running: loop {
-        if let Ok(data) = rx.try_recv() {
+        while let Ok(data) = rx.try_recv() {
             texture
                 .with_lock(None, |buffer: &mut [u8], pitch: usize| {
                     let row_padding = data.row;
@@ -112,6 +112,8 @@ fn main() -> Result<(), String> {
                 _ => {}
             }
         }
+
+        std::thread::sleep(Duration::from_millis(10));
     }
 
     Ok(())
