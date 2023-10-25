@@ -1,34 +1,33 @@
+use std::sync::mpsc::Sender;
+use std::thread;
 use std::time::Instant;
-
-use sdl2::render::Canvas;
 
 use crate::algebra::{Unit, Vec3};
 use crate::camera::Camera;
 use crate::color::{Color, ColorOps, BLACK};
+use crate::PixelsBuffer;
 
 pub(crate) mod cornell_box;
 
-const ITERATIONS: usize = 64;
-const STEP: usize = 32;
+const ITERATIONS: usize = 1;
 
 pub trait Scene {
     fn compute_color(&mut self, camera: &Vec3, d: &Vec3) -> Color;
 
-    fn get_pixels<const W: usize, const H: usize>(
+    fn get_pixels<const W: usize, const H: usize, const STEP: usize>(
         &mut self,
         camera: &Camera,
-        canvas: &mut Canvas<sdl2::video::Window>,
+        tx: Sender<Box<PixelsBuffer>>,
     ) {
         let aspect_ratio: Unit = (W as Unit) / (H as Unit);
-        println!("Aspect ratio {}, {}: {}", W, H, aspect_ratio);
 
         let direction = camera.direction();
         let r = camera.r();
         let u = camera.u();
         let start = Instant::now();
         for row in (0..H).step_by(STEP) {
-            let mut pixels = [[BLACK; STEP]; STEP];
             for col in (0..W).step_by(STEP) {
+                let mut pb = Box::new(PixelsBuffer::new(row, col));
                 for y in row..(row + STEP) {
                     for x in col..(col + STEP) {
                         let adj_y: Unit = (y as Unit) / ((H as Unit) / 2.) - 1.;
@@ -47,16 +46,14 @@ pub trait Scene {
                             }
                         }
 
-                        pixels[y - row][x - col] = colors.to_vec().avg();
+                        let c: sdl2::pixels::Color = colors.to_vec().avg().into();
+                        pb.pixels[(y - row) * STEP + (x - col) * 4] = c.r;
+                        pb.pixels[((y - row) * STEP + (x - col) * 4) + 1] = c.g;
+                        pb.pixels[((y - row) * STEP + (x - col) * 4) + 2] = c.b;
+                        pb.pixels[((y - row) * STEP + (x - col) * 4) + 3] = c.a;
                     }
-                    for y in row..(row + STEP) {
-                        for x in col..(col + STEP) {
-                            canvas.set_draw_color(pixels[y - row][x - col]);
-                            canvas.draw_point((x as i32, y as i32)).unwrap();
-                        }
-                    }
-                    canvas.present();
                 }
+                tx.send(pb).unwrap();
             }
         }
 

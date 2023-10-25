@@ -1,4 +1,3 @@
-use nalgebra::Vector3;
 
 use crate::algebra::{Unit, Vec3};
 

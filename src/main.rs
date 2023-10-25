@@ -1,8 +1,10 @@
 extern crate sdl2;
 
+use color::{BLACK, WHITE};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::pixels::Color;
+use sdl2::pixels::PixelFormatEnum;
+use std::sync::mpsc::channel;
 use std::time::Duration;
 
 use std::env;
@@ -20,6 +22,23 @@ pub(crate) mod scene;
 
 const W: usize = 800;
 const H: usize = 600;
+const STEP: usize = 32;
+
+pub struct PixelsBuffer {
+    row: usize,
+    col: usize,
+    pixels: [u8; STEP * STEP * 4],
+}
+
+impl PixelsBuffer {
+    pub fn new(row: usize, col: usize) -> PixelsBuffer {
+        PixelsBuffer {
+            row,
+            col,
+            pixels: [0; STEP * STEP * 4],
+        }
+    }
+}
 
 fn main() -> Result<(), String> {
     println!("{:?}", env::var_os("RUST_BACKTRACE"));
@@ -36,19 +55,42 @@ fn main() -> Result<(), String> {
 
     let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
 
-    canvas.set_draw_color(Color::RGB(0, 0, 0));
-    canvas.clear();
-    canvas.present();
-
-    canvas.present();
-
     let mut target_scene = cornell_box::new();
     let camera = Camera::default();
 
+    let (tx, rx) = channel::<Box<PixelsBuffer>>();
+
     let mut event_pump = sdl_context.event_pump()?;
-    target_scene.get_pixels::<W, H>(&camera, &mut canvas);
+    target_scene.get_pixels::<W, H, STEP>(&camera, tx);
+
+    canvas.set_draw_color(BLACK);
+    canvas.clear();
+    canvas.present();
+
+    let texture_creator = canvas.texture_creator();
+
+    let mut texture = texture_creator
+        .create_texture_streaming(None, W as u32, H as u32)
+        .unwrap();
+
+    println!("{:?}", texture.query());
 
     'running: loop {
+        if let Ok(data) = rx.try_recv() {
+            texture
+                .with_lock(None, |buffer: &mut [u8], pitch: usize| {
+                    for y in 0..STEP {
+                        for x in 0..STEP {
+                            buffer[y*data.row * W + x * data.col]
+                        }
+                    }
+                })
+                .unwrap();
+
+            canvas.copy(&texture, None, None).unwrap();
+        }
+
+        canvas.present();
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit { .. }
