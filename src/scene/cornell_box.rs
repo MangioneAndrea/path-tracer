@@ -89,17 +89,13 @@ impl Scene for CornellBox {
             random_direction = -random_direction;
         }
 
-        let next_emissions = None; /*sphere
-                                   .get_properties()
-                                   .reflectivity
-                                   .map(|_| self.compute_color(&intersection, &Vec3(random_direction), rng));
-                                   */
-
-        let color = sphere.brdf(d, &Vec3(n), &Vec3(random_direction), next_emissions)
-            * (n.dot(&random_direction) * ((2. * PI) / 1. - P));
-        let emission = sphere.mesh_properties.emission.unwrap_or_default();
         let next_emissions = self.compute_color(&intersection, &Vec3(random_direction), rng);
+        let color = sphere.brdf(d, &Vec3(n), &Vec3(random_direction), next_emissions)
+            * (n.dot(&random_direction) * ((2. * PI) / 1. - P))
+            * next_emissions;
 
-        return emission + next_emissions * color;
+        let emission = sphere.mesh_properties.emission.unwrap_or_default();
+
+        return emission + color;
     }
 }

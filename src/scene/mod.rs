@@ -10,7 +10,7 @@ use crate::PixelsBuffer;
 
 pub(crate) mod cornell_box;
 
-const ITERATIONS: usize = 4096;
+const ITERATIONS: usize = 128;
 
 pub trait Scene: Sync + Send {
     fn compute_color(&self, camera: &Vec3, d: &Vec3, rng: &mut rand::rngs::ThreadRng) -> Color;
