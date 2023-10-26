@@ -93,7 +93,11 @@ fn main() -> Result<(), String> {
                     |buffer: &mut [u8], _: usize| {
                         for y in 0..STEP {
                             for x in 0..STEP {
+                                #[cfg(target_os = "windows")]
+                                let global_idx = (y * W + x) * 4;
+                                #[cfg(not(target_os = "windows"))]
                                 let global_idx = (y * STEP + x) * 4;
+
                                 let color: sdl2::pixels::Color = data.pixels[y * STEP + x].into();
                                 buffer[global_idx + 3] = 255;
                                 buffer[global_idx + 2] = color.r;
@@ -120,7 +124,7 @@ fn main() -> Result<(), String> {
             }
         }
 
-        std::thread::sleep(Duration::from_micros(10));
+        std::thread::sleep(Duration::from_micros(1));
     }
 
     Ok(())

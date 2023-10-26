@@ -10,7 +10,7 @@ use crate::PixelsBuffer;
 
 pub(crate) mod cornell_box;
 
-const ITERATIONS: usize = 8;
+const ITERATIONS: usize = 4096;
 
 pub trait Scene: Sync + Send {
     fn compute_color(&self, camera: &Vec3, d: &Vec3, rng: &mut rand::rngs::ThreadRng) -> Color;
@@ -34,11 +34,12 @@ pub fn get_pixels<const W: usize, const H: usize, const STEP: usize, S>(
     let _: Vec<_> = (0..H)
         .step_by(STEP)
         .map(|row| {
+            let mut colors = [BLACK; ITERATIONS];
             let scene = scene.clone();
             let tx = tx.clone();
             thread::spawn(move || {
+                let mut rng = rand::thread_rng();
                 for col in (0..W).step_by(STEP) {
-                    let mut rng = rand::thread_rng();
                     let mut pb = Box::new(PixelsBuffer::new(row, col));
                     for y in row..(row + STEP) {
                         for x in col..(col + STEP) {
@@ -52,11 +53,8 @@ pub fn get_pixels<const W: usize, const H: usize, const STEP: usize, S>(
                                     + (u.0 * (-fov_scale * adj_y)),
                             );
 
-                            let mut colors = [BLACK; ITERATIONS];
-                            for chunk in colors.chunks_mut(8) {
-                                for color in chunk {
-                                    *color = scene.compute_color(&camera.origin, &d, &mut rng);
-                                }
+                            for color in &mut colors {
+                                *color = scene.compute_color(&camera.origin, &d, &mut rng);
                             }
 
                             let c = colors.to_vec().avg().into();

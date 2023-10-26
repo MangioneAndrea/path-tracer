@@ -1,7 +1,7 @@
 use std::f32::consts::PI;
 
-use nalgebra::{distance, Vector1};
-use rand::{thread_rng, Rng};
+use nalgebra::distance;
+use rand::Rng;
 
 use crate::{
     algebra::Vec3,
@@ -11,14 +11,14 @@ use crate::{
 
 use super::Scene;
 
-const P: f32 = 0.1;
+const P: f32 = 0.2;
 
 pub struct CornellBox {
-    pub spheres: [Sphere; 8],
+    pub spheres: [Sphere; 7],
 }
 
 pub fn new() -> CornellBox {
-    let mut light = Sphere::new(0., 2., 0., 1.1, WHITE);
+    let mut light = Sphere::new(0., 101., 0., 100., WHITE);
     light.mesh_properties.emission = Some(WHITE);
 
     let mut spec_ball = Sphere::new(0.6, -0.8, -0.3, 0.2, RED);
@@ -26,7 +26,6 @@ pub fn new() -> CornellBox {
 
     CornellBox {
         spheres: [
-            Sphere::new(0., 101., 0., 100., WHITE),
             Sphere::new(-0.6, -0.7, -0.6, 0.3, PINK),
             spec_ball,
             Sphere::new(0., 0., 101., 100., GREEN),
@@ -66,24 +65,27 @@ impl Scene for CornellBox {
 
         let (sphere, intersection, _) = closest.unwrap();
 
-        let rnd: usize = rng.gen();
-
-        if (rnd as f32) < (P * (usize::MAX as f32)) {
+        if rng.gen::<f32>() < P {
             return sphere.mesh_properties.emission.unwrap_or_default();
         }
 
-        let mut random_direction = Vec3::new(rng.gen(), rng.gen(), rng.gen());
+        let mut random_direction = Vec3::new(
+            rng.gen_range((-1.)..(1.)),
+            rng.gen_range((-1.)..(1.)),
+            rng.gen_range((-1.)..(1.)),
+        );
+
         let n = (intersection.0 - sphere.mesh_properties.center.0).normalize();
 
         while random_direction.0.magnitude() > 1. {
-            random_direction.0.x = rng.gen();
-            random_direction.0.y = rng.gen();
-            random_direction.0.z = rng.gen();
+            random_direction.0.x = rng.gen_range((-1.)..(1.));
+            random_direction.0.y = rng.gen_range((-1.)..(1.));
+            random_direction.0.z = rng.gen_range((-1.)..(1.));
         }
 
         let mut random_direction = random_direction.0.normalize();
 
-        if random_direction.dot(&n) < 0. {
+        if n.dot(&random_direction) < 0. {
             random_direction = -random_direction;
         }
 
