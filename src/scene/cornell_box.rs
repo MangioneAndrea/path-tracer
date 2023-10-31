@@ -22,7 +22,7 @@ pub fn new() -> CornellBox {
     light.mesh_properties.emission = Some(WHITE);
 
     let mut spec_ball = Sphere::new(0.6, -0.8, -0.3, 0.2, RED);
-    spec_ball.mesh_properties.reflectivity = Some(1.);
+    // spec_ball.mesh_properties.reflectivity = Some(1.);
 
     CornellBox {
         spheres: [
