@@ -30,6 +30,10 @@ impl Mesh for Sphere {
         return &self.mesh_properties;
     }
 
+    fn normal_at(&self, at: &Vec3) -> Vec3 {
+        return (at.0 - self.get_properties().center.0).normalize().into();
+    }
+
     fn closest_intersection(&self, origin: &Vec3, direction: &Vec3) -> Option<Vec3> {
         let u = direction.0.normalize();
         let ce = origin.0 - self.mesh_properties.center.0;
@@ -50,7 +54,6 @@ impl Mesh for Sphere {
         } else {
             -b - delta.sqrt()
         };
-
 
         if d < 0.000001 {
             return None;

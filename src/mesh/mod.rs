@@ -59,6 +59,8 @@ pub trait Mesh: Sync {
 
     fn get_properties(&self) -> &MeshProperties;
 
+    fn normal_at(&self, at: &Vec3) -> Vec3; 
+
     fn brdf(
         &self,
         incoming_direction: &Vec3,

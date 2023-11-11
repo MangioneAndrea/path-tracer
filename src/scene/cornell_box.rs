@@ -79,7 +79,7 @@ impl Scene for CornellBox {
             rng.gen_range((-1.)..(1.)),
         );
 
-        let n = (intersection.0 - mesh.get_properties().center.0).normalize();
+        let n = mesh.normal_at(&intersection).0;
 
         while random_direction.0.magnitude() > 1. {
             random_direction.0.x = rng.gen_range((-1.)..(1.));
