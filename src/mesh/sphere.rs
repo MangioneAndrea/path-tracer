@@ -51,13 +51,14 @@ impl Mesh for Sphere {
             -b - delta.sqrt()
         };
 
+
         if d < 0.000001 {
             return None;
         }
 
         let best = d / (2. * a);
 
-        let res = u * Vector1::new(best) + origin.0;
+        let res = u * best + origin.0;
 
         Some(Vec3(res))
     }

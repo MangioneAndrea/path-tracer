@@ -7,13 +7,15 @@ use crate::algebra::{Unit, Vec3};
 use crate::camera::Camera;
 use crate::color::{Color, ColorOps, BLACK};
 use crate::PixelsBuffer;
+use crate::mesh::Mesh;
 
 pub(crate) mod cornell_box;
 
-const ITERATIONS: usize = 256;
+const ITERATIONS: usize = 64;
 
 pub trait Scene: Sync + Send {
     fn compute_color(&self, camera: &Vec3, d: &Vec3, rng: &mut rand::rngs::ThreadRng) -> Color;
+    fn get_meshes(&self) -> &Vec<&dyn Mesh>;
 }
 
 pub fn get_pixels<const W: usize, const H: usize, const STEP: usize, S>(

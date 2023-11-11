@@ -6,7 +6,7 @@ use rand::Rng;
 use crate::{
     algebra::Vec3,
     color::{BLACK, BLUE, GREEN, PINK, RED, WHITE},
-    mesh::{sphere::Sphere, Mesh},
+    mesh::{cuboid::Cuboid, sphere::Sphere, Mesh},
 };
 
 use super::Scene;
@@ -14,7 +14,7 @@ use super::Scene;
 const P: f32 = 0.2;
 
 pub struct CornellBox {
-    pub spheres: [Sphere; 7],
+    pub meshes: Vec<&'static dyn Mesh>,
 }
 
 pub fn new() -> CornellBox {
@@ -25,27 +25,31 @@ pub fn new() -> CornellBox {
     // spec_ball.mesh_properties.reflectivity = Some(1.);
 
     CornellBox {
-        spheres: [
-            Sphere::new(-0.6, -0.7, -0.6, 0.3, PINK),
-            spec_ball,
-            Sphere::new(0., 0., 101., 100., GREEN),
-            Sphere::new(-101., 0., 0., 100., RED),
-            Sphere::new(101., 0., 0., 100., BLUE),
-            light,
-            Sphere::new(0., -101., 0., 100., WHITE),
+        meshes: vec![
+            Box::leak(Box::new(spec_ball)),
+            Box::leak(Box::new(Sphere::new(0., 0., 101., 100., GREEN))),
+            Box::leak(Box::new(Sphere::new(-101., 0., 0., 100., RED))),
+            Box::leak(Box::new(Sphere::new(101., 0., 0., 100., BLUE))),
+            Box::leak(Box::new(light)),
+            Box::leak(Box::new(Sphere::new(0., -101., 0., 100., WHITE))),
+            Box::leak(Box::new(Cuboid::new(-0.6, -0.7, -0.6, 1.3, 1.4, 0.5, PINK))),
         ],
     }
 }
 
 impl Scene for CornellBox {
+    fn get_meshes(&self) -> &Vec<&dyn Mesh> {
+        &self.meshes
+    }
+
     fn compute_color(
         &self,
         origin: &crate::algebra::Vec3,
         d: &crate::algebra::Vec3,
         rng: &mut rand::rngs::ThreadRng,
     ) -> crate::color::Color {
-        let closest: Option<(&Sphere, Vec3, f32)> = self
-            .spheres
+        let closest: Option<(_, Vec3, f32)> = self
+            .get_meshes()
             .iter()
             .map(|s| (s, s.closest_intersection(&origin, &d)))
             .filter(|(_, intersection)| intersection.is_some())
@@ -63,10 +67,10 @@ impl Scene for CornellBox {
             return BLACK;
         }
 
-        let (sphere, intersection, _) = closest.unwrap();
+        let (mesh, intersection, _) = closest.unwrap();
 
         if rng.gen::<f32>() < P {
-            return sphere.mesh_properties.emission.unwrap_or_default();
+            return mesh.get_properties().emission.unwrap_or_default();
         }
 
         let mut random_direction = Vec3::new(
@@ -75,7 +79,7 @@ impl Scene for CornellBox {
             rng.gen_range((-1.)..(1.)),
         );
 
-        let n = (intersection.0 - sphere.mesh_properties.center.0).normalize();
+        let n = (intersection.0 - mesh.get_properties().center.0).normalize();
 
         while random_direction.0.magnitude() > 1. {
             random_direction.0.x = rng.gen_range((-1.)..(1.));
@@ -90,11 +94,11 @@ impl Scene for CornellBox {
         }
 
         let next_emissions = self.compute_color(&intersection, &Vec3(random_direction), rng);
-        let color = sphere.brdf(d, &Vec3(n), &Vec3(random_direction), next_emissions)
+        let color = mesh.brdf(d, &Vec3(n), &Vec3(random_direction), next_emissions)
             * (n.dot(&random_direction) * ((2. * PI) / 1. - P))
             * next_emissions;
 
-        let emission = sphere.mesh_properties.emission.unwrap_or_default();
+        let emission = mesh.get_properties().emission.unwrap_or_default();
 
         return emission + color;
     }

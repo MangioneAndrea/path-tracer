@@ -54,7 +54,7 @@ private Vec3f specularBRDF(HitRecord hit, ImmutableVec3f incomingDirection, Immu
                     return (this->color + (specular * micro)) * (1. / M_PI);
                     }
 */
-pub trait Mesh {
+pub trait Mesh: Sync {
     fn closest_intersection(&self, from: &Vec3, to: &Vec3) -> Option<Vec3>;
 
     fn get_properties(&self) -> &MeshProperties;
