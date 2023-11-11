@@ -5,7 +5,7 @@ use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use std::sync::mpsc::channel;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use std::env;
 
@@ -60,13 +60,14 @@ fn main() -> Result<(), String> {
 
     let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
 
+    let start = Instant::now();
     let target_scene = Arc::new(Box::new(cornell_box::new()));
     let camera = Camera::default();
 
     let (tx, rx) = channel::<Box<PixelsBuffer>>();
 
     let mut event_pump = sdl_context.event_pump()?;
-    get_pixels::<W, H, STEP, CornellBox>(target_scene, camera, tx);
+    get_pixels::<W, H, STEP, CornellBox>(target_scene.clone(), camera, tx);
 
     canvas.set_draw_color(BLACK);
     canvas.clear();
@@ -108,6 +109,15 @@ fn main() -> Result<(), String> {
                     },
                 )
                 .unwrap();
+
+            if Arc::strong_count(&target_scene) == 1 {
+                let duration = start.elapsed();
+                println!(
+                    "Time elapsed after rx is: {:?} {}",
+                    duration,
+                    Arc::strong_count(&target_scene)
+                );
+            }
         }
         canvas.copy(&texture, None, None).unwrap();
 

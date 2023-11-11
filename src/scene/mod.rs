@@ -10,7 +10,7 @@ use crate::PixelsBuffer;
 
 pub(crate) mod cornell_box;
 
-const ITERATIONS: usize = 128;
+const ITERATIONS: usize = 256;
 
 pub trait Scene: Sync + Send {
     fn compute_color(&self, camera: &Vec3, d: &Vec3, rng: &mut rand::rngs::ThreadRng) -> Color;
@@ -28,16 +28,20 @@ pub fn get_pixels<const W: usize, const H: usize, const STEP: usize, S>(
     let direction = camera.direction();
     let r = camera.r();
     let u = camera.u();
-    let start = Instant::now();
     let fov_scale = camera.fov_scale();
 
-    let _: Vec<_> = (0..H)
-        .step_by(STEP)
-        .map(|row| {
-            let mut colors = [BLACK; ITERATIONS];
-            let scene = scene.clone();
-            let tx = tx.clone();
-            thread::spawn(move || {
+    let threads_n = std::thread::available_parallelism()
+        .expect("Windows macos and linux know the amount of threads")
+        .get();
+
+    let work_per_thread = H / threads_n;
+
+    for thd in 0..threads_n {
+        let scene = scene.clone();
+        let tx = tx.clone();
+        thread::spawn(move || {
+            for row in ((thd * work_per_thread)..((thd + 1) * work_per_thread)).step_by(STEP) {
+                let mut colors = [BLACK; ITERATIONS];
                 let mut rng = rand::thread_rng();
                 for col in (0..W).step_by(STEP) {
                     let mut pb = Box::new(PixelsBuffer::new(row, col));
@@ -63,11 +67,7 @@ pub fn get_pixels<const W: usize, const H: usize, const STEP: usize, S>(
                     }
                     tx.send(pb).unwrap();
                 }
-            })
-        })
-        .collect();
-
-    let duration = start.elapsed();
-
-    println!("Time elapsed in expensive_function() is: {:?}", duration);
+            }
+        });
+    }
 }
